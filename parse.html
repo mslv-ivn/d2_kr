@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Parse league</title>
+    <script type='text/javascript'>
+        function addLeagueField() {
+            let leagueField = document.getElementById("league-id");
+            let newField = document.createElement("input");
+            newField.name = "league-id[]";
+            leagueField.after(newField);
+        }
+    </script>
+</head>
+<body>
+<form action="league_parse.php" method="get">
+    <div>
+        14569 - NA TI 11 Regional Qualifiers
+        <br>
+        14570 - EEU TI 11 Regional Qualifiers
+        <br>
+        14571 - SA TI 11 Regional Qualifiers
+        <br>
+        14572 - CN TI 11 Regional Qualifiers
+        <br>
+        14573 - SEA TI 11 Regional Qualifiers
+        <br>
+        14574 - WEU TI 11 Regional Qualifiers
+        <br>
+        14268 - The International 2022
+        <br>
+    </div>
+    <div>
+        <label for="league-id">league id</label>
+        <input id="league-id" name="league-id[]">
+        <button type="button" onclick="addLeagueField()">add league</button>
+    </div>
+    <button type="submit">Отправить</button>
+</form>
+</body>
+</html>
