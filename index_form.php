@@ -1,7 +1,7 @@
 <?php
 require "Database.php";
 
-$heroes_stat = Database::getInstance()->selectHeroLeagueStats($_POST["leagues"]);
+$heroes_stat = Database::getInstance()->selectKillRace($_POST["leagues"]);
 
 array_pop($_POST);
 $result = array();

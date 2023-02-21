@@ -8,9 +8,9 @@ class Database
 {
     /**
      * @var int порог совершенных убийств одной из команд для события "гонка убийств".
-     * Может быть 5, 10, 15... до 30 вроде в некоторых букмекерках.
      */
     private int $kill_threshold = 10;
+    private int $kill_threshold2 = 15;
 
     /**
      * @var PDO Объект подключения к бд
@@ -18,7 +18,7 @@ class Database
     private PDO $dbh;
 
     /**
-     * @var Database Синглтон паттерн тест
+     * @var Database Объект синглтон паттерн
      */
     private static Database $instance;
 
@@ -33,7 +33,7 @@ class Database
     }
 
     /**
-     * Синглтон паттерн тест
+     * Синглтон паттерн
      * @return Database
      */
     public static function getInstance(): Database
@@ -46,11 +46,21 @@ class Database
     }
 
     /**
+     * Получить объект для получения к бд
+     * TODO Метод является временным костылем, пока не будет реализован метод query()
+     * @return PDO объект подключения к бд
+     */
+    public function getPDO(): PDO
+    {
+        return $this->dbh;
+    }
+
+    /**
      * TODO Сделать метод для кастомных запросов к бд.
      * @param $query
      * @return void
      */
-    public function query($query)
+    public function query($query): void
     {
     }
 
@@ -88,22 +98,33 @@ class Database
      */
     public function insertMatch($match_id): void
     {
-        $match = ApiCalls::getMatch($match_id);
+        $stmt = $this->dbh->prepare("select api_str from match_saved_api where match_id = :match_id");
+        $stmt->execute(["match_id" => $match_id]);
+        $api_str = $stmt->fetchColumn();
+        if ($api_str) {
+            $match = json_decode($api_str, true);
+        } else {
+            $match = ApiCalls::getMatch($match_id);
+            // Сохранить api-ответ в виде строки
+            $api_str = json_encode($match);
+            $stmt = $this->dbh->prepare("INSERT INTO match_saved_api (match_id, api_str) VALUES (:match_id, :api_str)");
+            $stmt->execute(['match_id' => $match["match_id"], 'api_str' => $api_str]);
+        }
 
         $heroes_kills = array();
         $kills_log = array();
         foreach ($match["players"] as $player) {
-            $heroes_kills[$player["hero_id"]] = ["player_slot" => $player["player_slot"], "kills" => 0];
+            $heroes_kills[$player["hero_id"]] = ["player_slot" => $player["player_slot"], "kills" => $player["kills"], "deaths" => $player["deaths"], "assists" => $player["assists"], "kr10_kills" => 0, "kr15_kills" => 0];
             foreach ($player["kills_log"] as $kill) {
                 $kills_log[] = ["player_slot" => $player["player_slot"], "hero_id" => $player["hero_id"], "time" => $kill["time"]];
             }
         }
 
         /**
-         * Сортировка килл лога по возрастанию
-         * Костыль в виде сортировки потому, что килл логи для каждого игрока отдельно.
+         * Сортировка килл лога по возрастанию.
+         * Костыль в виде сортировки, потому что килл лог для каждого игрока отдельный.
          * Приходиться собирать килл лог со всех игроков и упорядочивать по возрастанию,
-         * чтобы понять какая из команд первая достигла $kill_threshold
+         * чтобы понять, какая из команд первая достигла $kill_threshold.
          */
         usort($kills_log, function ($a, $b) {
             if ($a["time"] == $b["time"]) {
@@ -112,34 +133,42 @@ class Database
             return ($a["time"] < $b["time"]) ? -1 : 1;
         });
 
-        $dire_kills = 0;
-        $radiant_kills = 0;
+        $radiant_kills_kr10 = 0;
+        $dire_kills_kr10 = 0;
+        $radiant_kills_kr15 = 0;
+        $dire_kills_kr15 = 0;
         foreach ($kills_log as $kill) {
-            $heroes_kills[$kill["hero_id"]]["kills"]++;
-
-            if ($kill["player_slot"] <= 4) {
-                $radiant_kills++;
-            } else {
-                $dire_kills++;
+            if ($radiant_kills_kr10 < $this->kill_threshold && $dire_kills_kr10 < $this->kill_threshold) {
+                $heroes_kills[$kill["hero_id"]]["kr10_kills"]++;
+                if ($kill["player_slot"] <= 4) {
+                    $radiant_kills_kr10++;
+                } else {
+                    $dire_kills_kr10++;
+                }
             }
 
-            if ($dire_kills == $this->kill_threshold || $radiant_kills == $this->kill_threshold) break;
+            $heroes_kills[$kill["hero_id"]]["kr15_kills"]++;
+            if ($kill["player_slot"] <= 4) {
+                $radiant_kills_kr15++;
+            } else {
+                $dire_kills_kr15++;
+            }
+
+            if ($radiant_kills_kr15 == $this->kill_threshold2 || $dire_kills_kr15 == $this->kill_threshold2) break;
         }
+        // Совершили ли Radiant событие "Гонка убийств 10"
+        $radiant_kr10 = $radiant_kills_kr10 > $dire_kills_kr10 ? 1 : 0;
+        // Совершили ли Radiant событие "Гонка убийств 15"
+        $radiant_kr15 = $radiant_kills_kr15 > $dire_kills_kr15 ? 1 : 0;
 
-        $radiant_did_10_kills = $radiant_kills > $dire_kills ? 1 : 0;
+        // Insert match
+        $stmt = $this->dbh->prepare("INSERT INTO `match` (id, league_id, radiant_score, dire_score, radiant_win, radiant_kr10, radiant_kr15, duration, first_blood_time, radiant_team_name, dire_team_name, radiant_team_id, dire_team_id) VALUES (:id, :league_id, :radiant_score, :dire_score, :radiant_win, :radiant_kr10, :radiant_kr15, :duration, :first_blood_time, :radiant_team_name, :dire_team_name, :radiant_team_id, :dire_team_id)");
+        $stmt->execute(['id' => $match["match_id"], 'league_id' => $match["leagueid"], 'radiant_score' => $match["radiant_score"], 'dire_score' => $match["dire_score"], 'radiant_win' => $match["radiant_win"], 'radiant_kr10' => $radiant_kr10, 'radiant_kr15' => $radiant_kr15, 'duration' => $match["duration"], 'first_blood_time' => $match["first_blood_time"], 'radiant_team_name' => $match["radiant_team"]["name"], 'dire_team_name' => $match["dire_team"]["name"], 'radiant_team_id' => $match["radiant_team_id"], 'dire_team_id' => $match["dire_team_id"]]);
 
-        /**
-         * Insert match
-         */
-        $stmt = $this->dbh->prepare("INSERT INTO `match` (id, league_id, radiant_did_10_kills) VALUES (:id, :league_id, :radiant_did_10_kills)");
-        $stmt->execute(['id' => $match["match_id"], 'league_id' => $match["leagueid"], 'radiant_did_10_kills' => $radiant_did_10_kills]);
-
-        /**
-         * Insert player
-         */
-        $stmt = $this->dbh->prepare("INSERT INTO player (match_id, hero_id, player_slot, kills) VALUES (:match_id, :hero_id, :player_slot, :kills)");
+        // Insert player
+        $stmt = $this->dbh->prepare("INSERT INTO player (match_id, hero_id, player_slot, kills, deaths, assists, kr10_kills, kr15_kills) VALUES (:match_id, :hero_id, :player_slot, :kills, :deaths, :assists, :kr10_kills, :kr15_kills)");
         foreach ($heroes_kills as $hero_id => $hero_data) {
-            $stmt->execute(['match_id' => $match["match_id"], 'hero_id' => $hero_id, 'player_slot' => $hero_data["player_slot"], 'kills' => $hero_data["kills"]]);
+            $stmt->execute(['match_id' => $match["match_id"], 'hero_id' => $hero_id, 'player_slot' => $hero_data["player_slot"], "kills" => $hero_data["kills"], "deaths" => $hero_data["deaths"], "assists" => $hero_data["assists"], 'kr10_kills' => $hero_data["kr10_kills"], 'kr15_kills' => $hero_data["kr15_kills"]]);
         }
     }
 
@@ -170,7 +199,7 @@ class Database
 
     /**
      * Удалить лигу
-     * При удалении лиги каскадно удаляются поля в таблицах match, player, hero_league_stats
+     * При удалении лиги каскадно удаляются поля в таблицах match, player, kr10_hero_stat
      * @param $league_id
      * @return void
      */
@@ -201,13 +230,7 @@ class Database
     {
         $stmt = $this->dbh->prepare("select id from `match` where league_id = :league_id");
         $stmt->execute(['league_id' => $league_id]);
-
-        $matches_ids = array();
-        while ($match = $stmt->fetch()) {
-            $matches_ids[] = $match["id"];
-        }
-
-        return $matches_ids;
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     /**
@@ -222,30 +245,18 @@ class Database
     }
 
     /**
-     * Выборка статистики героев для лиги/лиг
+     * Выборка статистики героев для лиги/лиг (событие "гонка убийств")
      * @param array $leagues_ids
      * @return array статистика героев по лиге
      */
-    public function selectHeroLeagueStats(array $leagues_ids): array
+    public function selectKillRace(array $leagues_ids): array
     {
         /** Костыль для where in */
         $in = str_repeat('?,', count($leagues_ids) - 1) . '?';
-        $stmt = $this->dbh->prepare("select hero_id, sum(total_kills) as kills, sum(matches_played) as matches, sum(total_kills)/sum(matches_played) as average from hero_league_stats where league_id in ($in) group by hero_id");
+        $stmt = $this->dbh->prepare("select hero_id, sum(kr10_kills) as kr10_kills, sum(kr10_matches) as kr10_matches, avg(kr10_average) as kr10_average, sum(kr15_kills) as kr15_kills, sum(kr15_matches) as kr15_matches, avg(kr15_average) as kr15_average from kill_race where league_id in ($in) group by hero_id");
         $stmt->execute($leagues_ids);
-        /**
-         * Приведение массива к виду { "hero_id" => [hero_data] }
-         * TODO можно сделать красиво, если использовать параметры в fetchAll()
-         */
-        $heroes_stat = $stmt->fetchAll();
-        $hero_stats_formatted = array();
-        foreach ($heroes_stat as $hero_stat) {
-            $hero_stats_formatted[$hero_stat["hero_id"]]["kills"] = $hero_stat["kills"];
-            $hero_stats_formatted[$hero_stat["hero_id"]]["matches"] = $hero_stat["matches"];
-            $hero_stats_formatted[$hero_stat["hero_id"]]["average"] = $hero_stat["average"];
-        }
-        return $hero_stats_formatted;
+        return $stmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
     }
-
 
     /**
      * Выборка всех матчей лиги

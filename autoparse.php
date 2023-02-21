@@ -1,6 +1,6 @@
 <?php
-/** TODO разобраться с autoparse.php и league_parse.php. Файлы являются дубликатами */
 require "Database.php";
+// TODO Duplicated code fragment
 ignore_user_abort(1); // Let the script run even if user leaves the page
 set_time_limit(0);    // Let script run forever
 

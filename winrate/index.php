@@ -1,5 +1,5 @@
 <?php
-require "Database.php";
+require "../Database.php";
 $leagues = Database::getInstance()->selectLeagues();
 ?>
 <!DOCTYPE html>

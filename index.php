@@ -46,7 +46,7 @@ $heroes = Database::getInstance()->selectHeroes();
 <body>
 <div class="container">
     <div>
-        <form action="heroes_form.php" method="post" id="heroes-form">
+        <form action="index_form.php" method="post" id="heroes-form">
             <div class="mb-3">
                 <input type="text">
                 <div class="h5">Radiant</div>
@@ -128,7 +128,7 @@ $heroes = Database::getInstance()->selectHeroes();
         </form>
     </div>
     <div class="mt-3">
-        <a href="parse.html" class="btn btn-danger">Parse league</a>
+        <a href="league_parse/index.html" class="btn btn-danger">Parse league</a>
     </div>
 </div>
 <script>
@@ -149,15 +149,15 @@ $heroes = Database::getInstance()->selectHeroes();
         let rad_avg = 0, dire_avg = 0;
         for (const hero of heroes) {
             if (hero["field"].slice(-1) < 5) {
-                rad_avg += parseFloat(hero["average"]);
+                rad_avg += parseFloat(hero["kr10_average"]);
             } else {
-                dire_avg += parseFloat(hero["average"]);
+                dire_avg += parseFloat(hero["kr10_average"]);
             }
             const ins = document.getElementById(hero["field"] + "-insert");
 
-            ins.querySelector('.hero-kills').innerHTML = "<b>kills: </b>" + hero["kills"];
-            ins.querySelector('.hero-matches').innerHTML = "<b>matches: </b>" + hero["matches"];
-            ins.querySelector('.hero-average').innerHTML = "<b>average: </b>" + hero["average"];
+            ins.querySelector('.hero-kills').innerHTML = "<b>kills: </b>" + hero["kr10_kills"];
+            ins.querySelector('.hero-matches').innerHTML = "<b>matches: </b>" + hero["kr10_matches"];
+            ins.querySelector('.hero-average').innerHTML = "<b>average: </b>" + hero["kr10_average"];
 
             // ins.innerHTML = "kills: " + hero["kills"] + " matches: " + hero["matches"] + " average: " + hero["average"];
 
