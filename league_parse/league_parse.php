@@ -24,7 +24,8 @@ function league_parse($league_id): void
     }
 }
 
-$leagues_ids = $_GET["league-id"];
+//$leagues_ids = $_GET["league-id"];
+$leagues_ids = [14857, 14858, 14859, 14860, 14886, 14887, 14892, 14893, 14921, 14922, 14927, 14928 ];
 
 $added_leagues = array();
 foreach ($leagues_ids as $league_id) {

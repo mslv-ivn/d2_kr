@@ -1,5 +1,5 @@
 <?php
-require "Database.php";
+require "../Database.php";
 
 $heroes_stat = Database::getInstance()->selectKillRace($_POST["leagues"]);
 

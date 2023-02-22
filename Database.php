@@ -111,12 +111,17 @@ class Database
             $stmt->execute(['match_id' => $match["match_id"], 'api_str' => $api_str]);
         }
 
+        //Костыль - в килл логе герои отображаются как "npc_dota_hero_rubick"
+        $stmt = $this->dbh->prepare("select name, id from hero");
+        $stmt->execute();
+        $heroes = $stmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
+
         $heroes_kills = array();
         $kills_log = array();
         foreach ($match["players"] as $player) {
-            $heroes_kills[$player["hero_id"]] = ["player_slot" => $player["player_slot"], "kills" => $player["kills"], "deaths" => $player["deaths"], "assists" => $player["assists"], "kr10_kills" => 0, "kr15_kills" => 0];
+            $heroes_kills[$player["hero_id"]] = ["player_slot" => $player["player_slot"], "kills" => $player["kills"], "deaths" => $player["deaths"], "assists" => $player["assists"], "kills_kr10" => 0, "deaths_kr10" => 0, "kills_kr15" => 0, "deaths_kr15" => 0];
             foreach ($player["kills_log"] as $kill) {
-                $kills_log[] = ["player_slot" => $player["player_slot"], "hero_id" => $player["hero_id"], "time" => $kill["time"]];
+                $kills_log[] = ["player_slot" => $player["player_slot"], "hero_id" => $player["hero_id"], "time" => $kill["time"], "dead_hero_id" => $heroes[$kill["key"]]["id"]];
             }
         }
 
@@ -139,7 +144,8 @@ class Database
         $dire_kills_kr15 = 0;
         foreach ($kills_log as $kill) {
             if ($radiant_kills_kr10 < $this->kill_threshold && $dire_kills_kr10 < $this->kill_threshold) {
-                $heroes_kills[$kill["hero_id"]]["kr10_kills"]++;
+                $heroes_kills[$kill["hero_id"]]["kills_kr10"]++;
+                $heroes_kills[$kill["dead_hero_id"]]["deaths_kr10"]++;
                 if ($kill["player_slot"] <= 4) {
                     $radiant_kills_kr10++;
                 } else {
@@ -147,7 +153,8 @@ class Database
                 }
             }
 
-            $heroes_kills[$kill["hero_id"]]["kr15_kills"]++;
+            $heroes_kills[$kill["hero_id"]]["kills_kr15"]++;
+            $heroes_kills[$kill["dead_hero_id"]]["deaths_kr15"]++;
             if ($kill["player_slot"] <= 4) {
                 $radiant_kills_kr15++;
             } else {
@@ -166,9 +173,9 @@ class Database
         $stmt->execute(['id' => $match["match_id"], 'league_id' => $match["leagueid"], 'radiant_score' => $match["radiant_score"], 'dire_score' => $match["dire_score"], 'radiant_win' => $match["radiant_win"], 'radiant_kr10' => $radiant_kr10, 'radiant_kr15' => $radiant_kr15, 'duration' => $match["duration"], 'first_blood_time' => $match["first_blood_time"], 'radiant_team_name' => $match["radiant_team"]["name"], 'dire_team_name' => $match["dire_team"]["name"], 'radiant_team_id' => $match["radiant_team_id"], 'dire_team_id' => $match["dire_team_id"]]);
 
         // Insert player
-        $stmt = $this->dbh->prepare("INSERT INTO player (match_id, hero_id, player_slot, kills, deaths, assists, kr10_kills, kr15_kills) VALUES (:match_id, :hero_id, :player_slot, :kills, :deaths, :assists, :kr10_kills, :kr15_kills)");
+        $stmt = $this->dbh->prepare("INSERT INTO player (match_id, hero_id, player_slot, kills, deaths, assists, kills_kr10, deaths_kr10, kills_kr15, deaths_kr15) VALUES (:match_id, :hero_id, :player_slot, :kills, :deaths, :assists, :kills_kr10, :deaths_kr10, :kills_kr15, :deaths_kr15)");
         foreach ($heroes_kills as $hero_id => $hero_data) {
-            $stmt->execute(['match_id' => $match["match_id"], 'hero_id' => $hero_id, 'player_slot' => $hero_data["player_slot"], "kills" => $hero_data["kills"], "deaths" => $hero_data["deaths"], "assists" => $hero_data["assists"], 'kr10_kills' => $hero_data["kr10_kills"], 'kr15_kills' => $hero_data["kr15_kills"]]);
+            $stmt->execute(['match_id' => $match["match_id"], 'hero_id' => $hero_id, 'player_slot' => $hero_data["player_slot"], "kills" => $hero_data["kills"], "deaths" => $hero_data["deaths"], "assists" => $hero_data["assists"], 'kills_kr10' => $hero_data["kills_kr10"], 'deaths_kr10' => $hero_data['deaths_kr10'], 'kills_kr15' => $hero_data["kills_kr15"], 'deaths_kr15' => $hero_data["deaths_kr15"]]);
         }
     }
 
@@ -199,7 +206,7 @@ class Database
 
     /**
      * Удалить лигу
-     * При удалении лиги каскадно удаляются поля в таблицах match, player, kr10_hero_stat
+     * При удалении лиги каскадно удаляются поля в таблицах match, player, kill_race
      * @param $league_id
      * @return void
      */
@@ -253,7 +260,7 @@ class Database
     {
         /** Костыль для where in */
         $in = str_repeat('?,', count($leagues_ids) - 1) . '?';
-        $stmt = $this->dbh->prepare("select hero_id, sum(kr10_kills) as kr10_kills, sum(kr10_matches) as kr10_matches, avg(kr10_average) as kr10_average, sum(kr15_kills) as kr15_kills, sum(kr15_matches) as kr15_matches, avg(kr15_average) as kr15_average from kill_race where league_id in ($in) group by hero_id");
+        $stmt = $this->dbh->prepare("select hero_id, sum(kills_kr10) as kills_kr10, sum(matches_kr10) as matches_kr10, avg(average_kills_kr10) as average_kills_kr10, avg(average_deaths_kr10) as average_deaths_kr10, sum(kills_kr15) as kills_kr15, sum(matches_kr15) as matches_kr15, avg(average_kills_kr15) as average_kills_kr15, avg(average_deaths_kr15) as average_deaths_kr15 from kill_race where league_id in ($in) group by hero_id");
         $stmt->execute($leagues_ids);
         return $stmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
     }

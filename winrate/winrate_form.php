@@ -16,9 +16,9 @@ foreach ($league_matches as $league_match) {
     $dire_avg = 0;
     foreach ($players as $player) {
         if ($player["player_slot"] <= 4) {
-            $radiant_avg += $hero_stats[$player["hero_id"]]["kr10_average"];
+            $radiant_avg += $hero_stats[$player["hero_id"]]["average_kills_kr10"];
         } else {
-            $dire_avg += $hero_stats[$player["hero_id"]]["kr10_average"];
+            $dire_avg += $hero_stats[$player["hero_id"]]["average_kills_kr10"];
         }
     }
 

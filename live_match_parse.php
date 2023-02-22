@@ -34,8 +34,8 @@ for ($i = 0; $i < 5; $i++) {
 
         // Если герои еще не были пикнуты игроками, то пропускаем итерацию цикла
         // Иначе подсчитываем суммарную силу героев для обеих команд
-        $rad_avg = 0;
-        $dire_avg = 0;
+        $radiant_average_kills_kr10 = $dire_average_kills_kr10 = $radiant_average_deaths_kr10 = $dire_average_deaths_kr10 = 0;
+        $radiant_average_kills_kr15 = $dire_average_kills_kr15 = $radiant_average_deaths_kr15 = $dire_average_deaths_kr15 = 0;
         $loop_continue = 0;
         $heroes_radiant = array();
         $heroes_dire = array();
@@ -45,7 +45,10 @@ for ($i = 0; $i < 5; $i++) {
                     $loop_continue = 1;
                     break;
                 }
-                $rad_avg += $heroes_stat[$player["hero_id"]]["kr10_average"];
+                $radiant_average_kills_kr10 += $heroes_stat[$player["hero_id"]]["average_kills_kr10"];
+                $radiant_average_deaths_kr10 += $heroes_stat[$player["hero_id"]]["average_deaths_kr10"];
+                $radiant_average_kills_kr15 += $heroes_stat[$player["hero_id"]]["average_kills_kr15"];
+                $radiant_average_deaths_kr15 += $heroes_stat[$player["hero_id"]]["average_deaths_kr15"];
                 $heroes_radiant[] = $player["hero_id"];
             }
             if ($player["team"] == 1) {
@@ -53,7 +56,10 @@ for ($i = 0; $i < 5; $i++) {
                     $loop_continue = 1;
                     break;
                 }
-                $dire_avg += $heroes_stat[$player["hero_id"]]["kr10_average"];
+                $dire_average_kills_kr10 += $heroes_stat[$player["hero_id"]]["average_kills_kr10"];
+                $dire_average_deaths_kr10 += $heroes_stat[$player["hero_id"]]["average_deaths_kr10"];
+                $dire_average_kills_kr15 += $heroes_stat[$player["hero_id"]]["average_kills_kr15"];
+                $dire_average_deaths_kr15 += $heroes_stat[$player["hero_id"]]["average_deaths_kr15"];
                 $heroes_dire[] = $player["hero_id"];
             }
         }
@@ -62,12 +68,22 @@ for ($i = 0; $i < 5; $i++) {
         $team1_info = total_frags_info($live_match["radiant_team"]["team_id"]);
         $team2_info = total_frags_info($live_match["radiant_team"]["team_id"]);
 
+        $radiant_kr10 = ($radiant_average_kills_kr10 + $dire_average_deaths_kr10)/2;
+        $dire_kr10 = ($dire_average_kills_kr10 + $radiant_average_deaths_kr10)/2;
+        $radiant_kr15 = ($radiant_average_kills_kr15 + $dire_average_deaths_kr15)/2;
+        $dire_kr15 = ($dire_average_kills_kr15 + $radiant_average_deaths_kr15)/2;
+
         // Анонс в тг
         $message =
 //        $league["name"] . " tier: " . $league["tier"] . "\n" .
-//            $live_match["radiant_team"]["team_name"] . " avg: " . number_format($rad_avg, 2) . "\n" .
-//            $live_match["dire_team"]["team_name"] . " avg: " . number_format($dire_avg, 2) . "\n" .
-//            "Ставь на " . "<b>" . ($rad_avg > $dire_avg ? $live_match["radiant_team"]["team_name"] : $live_match["dire_team"]["team_name"]) . "</b>" . "\n" .
+            "Гонка убийств 10:\n" .
+            $live_match["radiant_team"]["team_name"] . " avg: " . number_format($radiant_kr10, 3) . "\n" .
+            $live_match["dire_team"]["team_name"] . " avg: " . number_format($dire_kr10, 3) . "\n" .
+            "Ставь на " . "<b>" . ($radiant_kr10 > $dire_kr10 ? $live_match["radiant_team"]["team_name"] : $live_match["dire_team"]["team_name"]) . "</b>" . "\n" .
+            "Гонка убийств 15:\n" .
+            $live_match["radiant_team"]["team_name"] . " avg: " . number_format($radiant_kr15, 3) . "\n" .
+            $live_match["dire_team"]["team_name"] . " avg: " . number_format($dire_kr15, 3) . "\n" .
+            "Ставь на " . "<b>" . ($radiant_kr15 > $dire_kr15 ? $live_match["radiant_team"]["team_name"] : $live_match["dire_team"]["team_name"]) . "</b>" . "\n" .
             "avg убийств командой " . $live_match["radiant_team"]["team_name"] . ": " . $team1_info["kills"] . "\n" .
             "avg убийств на команде " . $live_match["radiant_team"]["team_name"] . ": " . $team1_info["deaths"] . "\n" .
             "avg фрагов у команды " . $live_match["radiant_team"]["team_name"] . ": " . $team1_info["avg"] . "\n" .
