@@ -1,6 +1,5 @@
 <?php
 require "../Database.php";
-// TODO Duplicated code fragment
 ignore_user_abort(1); // Let the script run even if user leaves the page
 set_time_limit(0);    // Let script run forever
 
@@ -24,8 +23,7 @@ function league_parse($league_id): void
     }
 }
 
-//$leagues_ids = $_GET["league-id"];
-$leagues_ids = [14857, 14858, 14859, 14860, 14886, 14887, 14892, 14893, 14921, 14922, 14927, 14928 ];
+$leagues_ids = $_GET["league-id"];
 
 $added_leagues = array();
 foreach ($leagues_ids as $league_id) {

@@ -1,8 +1,8 @@
 <?php
 function tg_sendMessage($message)
 {
-    $bot_token = "5771279953:AAGirD4apiUSv8QP6t8bF2MzNzdl39pNKSg";
-    $tg_channel = "@dota2_killing_race";
+    $bot_token = "TOKEN";
+    $tg_channel = "CHANNEL_ID";
 
     $message = urlencode($message);
 

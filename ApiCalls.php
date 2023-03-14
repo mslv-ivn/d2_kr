@@ -91,6 +91,6 @@ class ApiCalls
      */
     public static function getLiveMatches(): array
     {
-        return self::curlRequestAndResponse("https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGames/v1/?key=B32E73D0A1CD53AB9D8FABB94A67647E&league_id=");
+        return self::curlRequestAndResponse("https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGames/v1/?key=TOKEN&league_id=");
     }
 }
